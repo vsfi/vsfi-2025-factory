@@ -4,39 +4,38 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 // Пользователь
 type User struct {
-	ID         uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
+	ID         uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
 	KeycloakID string    `gorm:"unique;not null" json:"keycloak_id"`
 	Username   string    `gorm:"not null" json:"username"`
 	Email      string    `gorm:"not null" json:"email"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	CreatedAt  time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt  time.Time `gorm:"not null" json:"updated_at"`
 
 	Plumbuses []Plumbus `gorm:"foreignKey:UserID" json:"plumbuses,omitempty"`
 }
 
 // Плюмбус
 type Plumbus struct {
-	ID            uuid.UUID     `gorm:"type:uuid;primary_key;" json:"id"`
-	UserID        uuid.UUID     `gorm:"type:uuid;not null" json:"user_id"`
+	ID            uuid.UUID     `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
+	UserID        uuid.UUID     `gorm:"type:uuid;not null;references:ID" json:"user_id"`
 	Name          string        `gorm:"not null" json:"name"`
 	Size          string        `gorm:"not null" json:"size"`
 	Color         string        `gorm:"not null" json:"color"`
 	Shape         string        `gorm:"not null" json:"shape"`
 	Weight        string        `gorm:"not null" json:"weight"`
 	Wrapping      string        `gorm:"not null" json:"wrapping"`
-	Status        PlumbusStatus `gorm:"default:'pending'" json:"status"`
+	Status        PlumbusStatus `gorm:"type:varchar(20);default:'pending'" json:"status"`
 	IsRare        bool          `gorm:"default:false" json:"is_rare"`
 	ImagePath     *string       `json:"image_path,omitempty"`
 	Signature     *string       `json:"signature,omitempty"`
 	SignatureDate *time.Time    `json:"signature_date,omitempty"`
 	ErrorMsg      *string       `json:"error_msg,omitempty"`
-	CreatedAt     time.Time     `json:"created_at"`
-	UpdatedAt     time.Time     `json:"updated_at"`
+	CreatedAt     time.Time     `gorm:"not null" json:"created_at"`
+	UpdatedAt     time.Time     `gorm:"not null" json:"updated_at"`
 
 	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
@@ -67,14 +66,4 @@ type PlumbusGenerationRequest struct {
 	Shape    string `json:"shape"`
 	Weight   string `json:"weight"`
 	Wrapping string `json:"wrapping"`
-}
-
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	u.ID = uuid.New()
-	return nil
-}
-
-func (p *Plumbus) BeforeCreate(tx *gorm.DB) error {
-	p.ID = uuid.New()
-	return nil
 }
