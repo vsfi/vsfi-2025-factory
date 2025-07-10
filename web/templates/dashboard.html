@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Righteous&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>Лаборатория плюмбусов</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span class="welcome-text">Добро пожаловать,</span>
+                    <span class="username">{{.user.Username}}</span>
+                </div>
+                <nav>
+                    <a href="/auth/logout" class="btn btn-secondary">Выйти</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <div class="generator-section">
+                <h2>Создать новый плюмбус</h2>
+                <form id="plumbus-form" class="plumbus-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">Название плюмбуса:</label>
+                            <input type="text" id="name" name="name" required placeholder="Мой супер плюмбус">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="size">Размер:</label>
+                            <select id="size" name="size" required>
+                                <option value="">Выберите размер</option>
+                                <option value="nano">Нано</option>
+                                <option value="XS">XS</option>
+                                <option value="S">S</option>
+                                <option value="M">M</option>
+                                <option value="L">L</option>
+                                <option value="XL">XL</option>
+                                <option value="XXL">XXL</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="color">Цвет:</label>
+                            <select id="color" name="color" required>
+                                <option value="">Выберите цвет</option>
+                                <option value="pink">Розовый</option>
+                                <option value="deep_pink">Тёмно-розовый</option>
+                                <option value="red">Красный</option>
+                                <option value="blue">Синий</option>
+                                <option value="green">Зелёный</option>
+                                <option value="yellow">Жёлтый</option>
+                                <option value="purple">Фиолетовый</option>
+                                <option value="orange">Оранжевый</option>
+                                <option value="cyan">Циан</option>
+                                <option value="lime">Лайм</option>
+                                <option value="teal">Бирюзовый</option>
+                                <option value="brown">Коричневый</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shape">Форма:</label>
+                            <select id="shape" name="shape" required>
+                                <option value="">Выберите форму</option>
+                                <option value="smooth">Гладкая</option>
+                                <option value="uglovatiy">Угловатая</option>
+                                <option value="multi-uglovatiy">Мульти-угловатая</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="weight">Вес:</label>
+                            <select id="weight" name="weight" required>
+                                <option value="">Выберите вес</option>
+                                <option value="ultralight">Сверхлёгкий</option>
+                                <option value="light">Лёгкий</option>
+                                <option value="medium">Средний</option>
+                                <option value="heavy">Тяжёлый</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="wrapping">Упаковка:</label>
+                            <select id="wrapping" name="wrapping" required>
+                                <option value="">Выберите упаковку</option>
+                                <option value="default">Стандартная</option>
+                                <option value="gift">Подарочная</option>
+                                <option value="limited">Лимитированная</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-generate">
+                        <span class="btn-text">Создать плюмбус</span>
+                        <div class="btn-glow"></div>
+                    </button>
+                </form>
+
+                <!-- Прогресс-бар -->
+                <div id="progress-container" class="progress-container" style="display: none;">
+                    <h3>Генерация плюмбуса...</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                        <div class="progress-text">0%</div>
+                    </div>
+                    <div class="portal-loading"></div>
+                </div>
+            </div>
+
+            <div class="collection-section">
+                <h2>Ваша коллекция плюмбусов</h2>
+                <div id="plumbus-grid" class="plumbus-grid">
+                    {{range .plumbuses}}
+                    <div class="plumbus-card{{if .IsRare}} rare{{end}}" data-status="{{.Status}}">
+                        <div class="card-header">
+                            <h3>{{.Name}}
+                                {{if .IsRare}}
+                                <span class="rare-badge" title="Мега редкий плюмбус!">✨</span>
+                                {{end}}
+                            </h3>
+                            <span class="status status-{{.Status}}">{{.Status}}</span>
+                        </div>
+                        <div class="card-content">
+                            {{if eq .Status "completed"}}
+                                <img src="/plumbus/image/{{.ID}}" alt="{{.Name}}" class="plumbus-image clickable-image" onclick="openImageModal('/plumbus/image/{{.ID}}', '{{.Name}}')">
+                            {{else if eq .Status "generating"}}
+                                <div class="generating-animation"></div>
+                            {{else if eq .Status "failed"}}
+                                <div class="error-message">Ошибка генерации</div>
+                            {{else}}
+                                <div class="pending-message">Ожидание генерации</div>
+                            {{end}}
+                        </div>
+                        <div class="card-details">
+                            <p><strong>Размер:</strong> <span class="card-size">{{if .Size}}{{.Size}}{{else}}Не указан{{end}}</span></p>
+                            <p><strong>Цвет:</strong> <span class="card-color" data-color="{{.Color}}">{{if .Color}}{{.Color}}{{else}}Не указан{{end}}</span></p>
+                            <p><strong>Форма:</strong> <span class="card-shape" data-shape="{{.Shape}}">{{if .Shape}}{{.Shape}}{{else}}Не указана{{end}}</span></p>
+                            {{if .Signature}}
+                            <div class="signature-info">
+                                <p><strong>🔒 Подпись:</strong> <span class="signature-hash" title="{{.Signature}}" data-full-signature="{{.Signature}}">{{.Signature}}</span></p>
+                                {{if .SignatureDate}}<p><strong>📅 Подписано:</strong> <span class="signature-date">{{.SignatureDate.Format "02.01.2006 15:04"}}</span></p>{{end}}
+                                <div class="signature-verified">✅ Подлинность подтверждена</div>
+                            </div>
+                            {{end}}
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно для полноэкранного просмотра -->
+    <div id="imageModal" class="modal" onclick="closeImageModal()">
+        <div class="modal-content">
+            <span class="close" onclick="closeImageModal()">&times;</span>
+            <img id="modalImage" class="modal-image" alt="">
+            <div class="modal-caption" id="modalCaption"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html> 
