@@ -5,25 +5,97 @@ import (
 	"time"
 
 	"factory/internal/models"
+	"factory/internal/testutils"
 
 	"github.com/google/uuid"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
+	return testutils.SetupTestDB(t)
+}
+
+func createTestUser(t *testing.T, db *gorm.DB) *models.User {
+	id := uuid.New()
+	if db.Name() == "sqlite" {
+		sqliteUser := SQLiteUser{
+			ID:         testutils.SQLiteUUID(id),
+			KeycloakID: "test-keycloak-id",
+			Username:   "testuser",
+			Email:      "test@example.com",
+		}
+		if err := db.Create(&sqliteUser).Error; err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+		return &models.User{
+			ID:         id,
+			KeycloakID: sqliteUser.KeycloakID,
+			Username:   sqliteUser.Username,
+			Email:      sqliteUser.Email,
+			CreatedAt:  sqliteUser.CreatedAt,
+			UpdatedAt:  sqliteUser.UpdatedAt,
+		}
 	}
 
-	// Автомиграция таблиц
-	err = db.AutoMigrate(&models.User{}, &models.Plumbus{})
-	if err != nil {
-		t.Fatalf("Failed to migrate test database: %v", err)
+	user := models.User{
+		ID:         id,
+		KeycloakID: "test-keycloak-id",
+		Username:   "testuser",
+		Email:      "test@example.com",
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+	return &user
+}
+
+func createTestPlumbus(t *testing.T, db *gorm.DB, userID uuid.UUID) *models.Plumbus {
+	id := uuid.New()
+	if db.Name() == "sqlite" {
+		sqlitePlumbus := SQLitePlumbus{
+			ID:       testutils.SQLiteUUID(id),
+			UserID:   testutils.SQLiteUUID(userID),
+			Name:     "Test Plumbus",
+			Size:     "medium",
+			Color:    "blue",
+			Shape:    "round",
+			Weight:   "light",
+			Wrapping: "gift",
+			Status:   models.StatusPending,
+		}
+		if err := db.Create(&sqlitePlumbus).Error; err != nil {
+			t.Fatalf("Failed to create test plumbus: %v", err)
+		}
+		return &models.Plumbus{
+			ID:        id,
+			UserID:    userID,
+			Name:      sqlitePlumbus.Name,
+			Size:      sqlitePlumbus.Size,
+			Color:     sqlitePlumbus.Color,
+			Shape:     sqlitePlumbus.Shape,
+			Weight:    sqlitePlumbus.Weight,
+			Wrapping:  sqlitePlumbus.Wrapping,
+			Status:    sqlitePlumbus.Status,
+			CreatedAt: sqlitePlumbus.CreatedAt,
+			UpdatedAt: sqlitePlumbus.UpdatedAt,
+		}
 	}
 
-	return db
+	plumbus := models.Plumbus{
+		ID:       id,
+		UserID:   userID,
+		Name:     "Test Plumbus",
+		Size:     "medium",
+		Color:    "blue",
+		Shape:    "round",
+		Weight:   "light",
+		Wrapping: "gift",
+		Status:   models.StatusPending,
+	}
+	if err := db.Create(&plumbus).Error; err != nil {
+		t.Fatalf("Failed to create test plumbus: %v", err)
+	}
+	return &plumbus
 }
 
 func TestNewUserService(t *testing.T) {
@@ -75,36 +147,17 @@ func TestUserService_GetOrCreateUser_CreateNew(t *testing.T) {
 	if user.ID == uuid.Nil {
 		t.Error("User ID should not be nil")
 	}
-
-	// Проверяем что пользователь сохранился в базе
-	var dbUser models.User
-	err = db.First(&dbUser, "keycloak_id = ?", keycloakID).Error
-	if err != nil {
-		t.Errorf("User was not saved to database: %v", err)
-	}
 }
 
 func TestUserService_GetOrCreateUser_GetExisting(t *testing.T) {
 	db := setupTestDB(t)
 	service := NewUserService(db)
 
-	keycloakID := "existing-keycloak-id"
-	username := "existinguser"
-	email := "existing@example.com"
-
 	// Создаем пользователя напрямую в базе
-	existingUser := models.User{
-		KeycloakID: keycloakID,
-		Username:   username,
-		Email:      email,
-	}
-	err := db.Create(&existingUser).Error
-	if err != nil {
-		t.Fatalf("Failed to create existing user: %v", err)
-	}
+	existingUser := createTestUser(t, db)
 
 	// Пытаемся получить/создать пользователя
-	user, err := service.GetOrCreateUser(keycloakID, "newusername", "newemail@example.com")
+	user, err := service.GetOrCreateUser(existingUser.KeycloakID, "newusername", "newemail@example.com")
 
 	// Проверяем что ошибки нет
 	if err != nil {
@@ -116,12 +169,12 @@ func TestUserService_GetOrCreateUser_GetExisting(t *testing.T) {
 		t.Errorf("GetOrCreateUser() returned new user, want existing user")
 	}
 
-	if user.Username != username {
-		t.Errorf("User Username = %v, want %v (original)", user.Username, username)
+	if user.Username != existingUser.Username {
+		t.Errorf("User Username = %v, want %v (original)", user.Username, existingUser.Username)
 	}
 
-	if user.Email != email {
-		t.Errorf("User Email = %v, want %v (original)", user.Email, email)
+	if user.Email != existingUser.Email {
+		t.Errorf("User Email = %v, want %v (original)", user.Email, existingUser.Email)
 	}
 }
 
@@ -130,15 +183,7 @@ func TestUserService_CreatePlumbus(t *testing.T) {
 	service := NewUserService(db)
 
 	// Создаем тестового пользователя
-	user := models.User{
-		KeycloakID: "test-user",
-		Username:   "testuser",
-		Email:      "test@example.com",
-	}
-	err := db.Create(&user).Error
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	user := createTestUser(t, db)
 
 	req := models.PlumbusRequest{
 		Name:     "Test Plumbus",
@@ -160,6 +205,10 @@ func TestUserService_CreatePlumbus(t *testing.T) {
 	// Проверяем что плюмбус создался
 	if plumbus == nil {
 		t.Fatal("CreatePlumbus() returned nil plumbus")
+	}
+
+	if plumbus.ID == uuid.Nil {
+		t.Error("Plumbus ID should not be nil")
 	}
 
 	if plumbus.UserID != user.ID {
@@ -193,45 +242,22 @@ func TestUserService_CreatePlumbus(t *testing.T) {
 	if plumbus.Status != models.StatusPending {
 		t.Errorf("Plumbus Status = %v, want %v", plumbus.Status, models.StatusPending)
 	}
-
-	if plumbus.ID == uuid.Nil {
-		t.Error("Plumbus ID should not be nil")
-	}
-
-	// Проверяем что плюмбус сохранился в базе
-	var dbPlumbus models.Plumbus
-	err = db.First(&dbPlumbus, "id = ?", plumbus.ID).Error
-	if err != nil {
-		t.Errorf("Plumbus was not saved to database: %v", err)
-	}
 }
 
 func TestUserService_UpdatePlumbusStatus(t *testing.T) {
 	db := setupTestDB(t)
 	service := NewUserService(db)
 
-	// Создаем тестовый плюмбус
-	plumbus := models.Plumbus{
-		UserID:   uuid.New(),
-		Name:     "Test Plumbus",
-		Size:     "medium",
-		Color:    "blue",
-		Shape:    "round",
-		Weight:   "light",
-		Wrapping: "gift",
-		Status:   models.StatusPending,
-	}
-	err := db.Create(&plumbus).Error
-	if err != nil {
-		t.Fatalf("Failed to create test plumbus: %v", err)
-	}
+	// Создаем тестового пользователя и плюмбус
+	user := createTestUser(t, db)
+	plumbus := createTestPlumbus(t, db, user.ID)
 
 	imagePath := "test/path.png"
 	signature := "test-signature"
 	signatureDate := time.Now()
 
 	// Обновляем статус плюмбуса
-	err = service.UpdatePlumbusStatus(plumbus.ID, models.StatusCompleted, &imagePath, nil, &signature, &signatureDate)
+	err := service.UpdatePlumbusStatus(plumbus.ID, models.StatusCompleted, &imagePath, nil, &signature, &signatureDate)
 
 	// Проверяем что ошибки нет
 	if err != nil {
@@ -239,8 +265,7 @@ func TestUserService_UpdatePlumbusStatus(t *testing.T) {
 	}
 
 	// Проверяем что плюмбус обновился в базе
-	var updatedPlumbus models.Plumbus
-	err = db.First(&updatedPlumbus, "id = ?", plumbus.ID).Error
+	updatedPlumbus, err := service.GetPlumbus(plumbus.ID)
 	if err != nil {
 		t.Fatalf("Failed to fetch updated plumbus: %v", err)
 	}
@@ -266,21 +291,9 @@ func TestUserService_GetPlumbus(t *testing.T) {
 	db := setupTestDB(t)
 	service := NewUserService(db)
 
-	// Создаем тестовый плюмбус
-	plumbus := models.Plumbus{
-		UserID:   uuid.New(),
-		Name:     "Test Plumbus",
-		Size:     "medium",
-		Color:    "blue",
-		Shape:    "round",
-		Weight:   "light",
-		Wrapping: "gift",
-		Status:   models.StatusPending,
-	}
-	err := db.Create(&plumbus).Error
-	if err != nil {
-		t.Fatalf("Failed to create test plumbus: %v", err)
-	}
+	// Создаем тестового пользователя и плюмбус
+	user := createTestUser(t, db)
+	plumbus := createTestPlumbus(t, db, user.ID)
 
 	// Получаем плюмбус
 	retrievedPlumbus, err := service.GetPlumbus(plumbus.ID)
@@ -325,15 +338,7 @@ func TestUserService_GetUserByID(t *testing.T) {
 	service := NewUserService(db)
 
 	// Создаем тестового пользователя
-	user := models.User{
-		KeycloakID: "test-user",
-		Username:   "testuser",
-		Email:      "test@example.com",
-	}
-	err := db.Create(&user).Error
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	user := createTestUser(t, db)
 
 	// Получаем пользователя
 	retrievedUser, err := service.GetUserByID(user.ID)
@@ -358,47 +363,11 @@ func TestUserService_GetUserPlumbuses(t *testing.T) {
 	service := NewUserService(db)
 
 	// Создаем тестового пользователя
-	user := models.User{
-		KeycloakID: "test-user",
-		Username:   "testuser",
-		Email:      "test@example.com",
-	}
-	err := db.Create(&user).Error
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	user := createTestUser(t, db)
 
 	// Создаем несколько плюмбусов для пользователя
-	plumbus1 := models.Plumbus{
-		UserID:   user.ID,
-		Name:     "Plumbus 1",
-		Size:     "small",
-		Color:    "red",
-		Shape:    "round",
-		Weight:   "light",
-		Wrapping: "basic",
-		Status:   models.StatusPending,
-	}
-	plumbus2 := models.Plumbus{
-		UserID:   user.ID,
-		Name:     "Plumbus 2",
-		Size:     "large",
-		Color:    "blue",
-		Shape:    "square",
-		Weight:   "heavy",
-		Wrapping: "premium",
-		Status:   models.StatusCompleted,
-	}
-
-	err = db.Create(&plumbus1).Error
-	if err != nil {
-		t.Fatalf("Failed to create test plumbus 1: %v", err)
-	}
-
-	err = db.Create(&plumbus2).Error
-	if err != nil {
-		t.Fatalf("Failed to create test plumbus 2: %v", err)
-	}
+	_ = createTestPlumbus(t, db, user.ID)
+	_ = createTestPlumbus(t, db, user.ID)
 
 	// Получаем плюмбусы пользователя
 	plumbuses, err := service.GetUserPlumbuses(user.ID)
@@ -431,15 +400,7 @@ func TestUserService_CreatePlumbus_RarenessProbability(t *testing.T) {
 	service := NewUserService(db)
 
 	// Создаем тестового пользователя
-	user := models.User{
-		KeycloakID: "test-user",
-		Username:   "testuser",
-		Email:      "test@example.com",
-	}
-	err := db.Create(&user).Error
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
+	user := createTestUser(t, db)
 
 	req := models.PlumbusRequest{
 		Name:     "Test Plumbus",

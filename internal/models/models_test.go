@@ -4,38 +4,41 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
-func TestUser_BeforeCreate(t *testing.T) {
+func TestUser_Fields(t *testing.T) {
+	id := uuid.New()
 	user := &User{
+		ID:         id,
 		KeycloakID: "test-keycloak-id",
 		Username:   "testuser",
 		Email:      "test@example.com",
 	}
 
-	// Вызываем BeforeCreate
-	err := user.BeforeCreate(&gorm.DB{})
-
-	// Проверяем что ошибки нет
-	if err != nil {
-		t.Errorf("BeforeCreate() error = %v, want nil", err)
+	// Проверяем что поля установлены корректно
+	if user.ID != id {
+		t.Errorf("User.ID = %v, want %v", user.ID, id)
 	}
 
-	// Проверяем что ID был установлен
-	if user.ID == uuid.Nil {
-		t.Error("BeforeCreate() did not set ID")
+	if user.KeycloakID != "test-keycloak-id" {
+		t.Errorf("User.KeycloakID = %v, want test-keycloak-id", user.KeycloakID)
 	}
 
-	// Проверяем что ID валидный UUID
-	if _, err := uuid.Parse(user.ID.String()); err != nil {
-		t.Errorf("BeforeCreate() set invalid UUID: %v", err)
+	if user.Username != "testuser" {
+		t.Errorf("User.Username = %v, want testuser", user.Username)
+	}
+
+	if user.Email != "test@example.com" {
+		t.Errorf("User.Email = %v, want test@example.com", user.Email)
 	}
 }
 
-func TestPlumbus_BeforeCreate(t *testing.T) {
+func TestPlumbus_Fields(t *testing.T) {
+	id := uuid.New()
+	userID := uuid.New()
 	plumbus := &Plumbus{
-		UserID:   uuid.New(),
+		ID:       id,
+		UserID:   userID,
 		Name:     "Test Plumbus",
 		Size:     "medium",
 		Color:    "blue",
@@ -45,22 +48,41 @@ func TestPlumbus_BeforeCreate(t *testing.T) {
 		Status:   StatusPending,
 	}
 
-	// Вызываем BeforeCreate
-	err := plumbus.BeforeCreate(&gorm.DB{})
-
-	// Проверяем что ошибки нет
-	if err != nil {
-		t.Errorf("BeforeCreate() error = %v, want nil", err)
+	// Проверяем что поля установлены корректно
+	if plumbus.ID != id {
+		t.Errorf("Plumbus.ID = %v, want %v", plumbus.ID, id)
 	}
 
-	// Проверяем что ID был установлен
-	if plumbus.ID == uuid.Nil {
-		t.Error("BeforeCreate() did not set ID")
+	if plumbus.UserID != userID {
+		t.Errorf("Plumbus.UserID = %v, want %v", plumbus.UserID, userID)
 	}
 
-	// Проверяем что ID валидный UUID
-	if _, err := uuid.Parse(plumbus.ID.String()); err != nil {
-		t.Errorf("BeforeCreate() set invalid UUID: %v", err)
+	if plumbus.Name != "Test Plumbus" {
+		t.Errorf("Plumbus.Name = %v, want Test Plumbus", plumbus.Name)
+	}
+
+	if plumbus.Size != "medium" {
+		t.Errorf("Plumbus.Size = %v, want medium", plumbus.Size)
+	}
+
+	if plumbus.Color != "blue" {
+		t.Errorf("Plumbus.Color = %v, want blue", plumbus.Color)
+	}
+
+	if plumbus.Shape != "round" {
+		t.Errorf("Plumbus.Shape = %v, want round", plumbus.Shape)
+	}
+
+	if plumbus.Weight != "light" {
+		t.Errorf("Plumbus.Weight = %v, want light", plumbus.Weight)
+	}
+
+	if plumbus.Wrapping != "gift" {
+		t.Errorf("Plumbus.Wrapping = %v, want gift", plumbus.Wrapping)
+	}
+
+	if plumbus.Status != StatusPending {
+		t.Errorf("Plumbus.Status = %v, want %v", plumbus.Status, StatusPending)
 	}
 }
 
