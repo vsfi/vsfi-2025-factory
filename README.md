@@ -261,6 +261,85 @@ LOG_LEVEL=debug go run cmd/main.go
 go build -o factory cmd/main.go
 ```
 
+### Тестирование
+
+#### Запуск unit-тестов
+
+Для запуска всех unit-тестов сервиса:
+
+```bash
+cd factory
+make test              # Быстрый запуск всех тестов
+make test-verbose      # Подробный вывод тестов
+```
+
+Для запуска тестов с покрытием кода:
+
+```bash
+make test-coverage     # Генерирует coverage.html с отчетом
+```
+
+Для запуска тестов конкретного модуля:
+
+```bash
+make test-models       # Тесты моделей данных
+make test-config       # Тесты конфигурации  
+make test-services     # Тесты сервисов
+```
+
+Полная справка по командам:
+
+```bash
+make help             # Показать все доступные команды
+```
+
+#### Тестовые зависимости
+
+Unit-тесты используют:
+- **SQLite** - in-memory база данных для тестирования UserService
+- **HTTP моки** - для тестирования PlumbusService и SignatureService  
+- **NATS моки** - для тестирования EventsService
+
+Для установки тестовых зависимостей:
+
+```bash
+go mod download
+go get gorm.io/driver/sqlite
+```
+
+#### Структура тестов
+
+```
+internal/
+├── models/
+│   ├── models.go
+│   └── models_test.go      # Тесты структур данных
+├── config/
+│   ├── config.go
+│   └── config_test.go      # Тесты конфигурации
+├── services/
+│   ├── plumbus.go
+│   ├── plumbus_test.go     # Тесты генерации плюмбусов
+│   ├── signature.go
+│   ├── signature_test.go   # Тесты цифровых подписей
+│   ├── events.go
+│   ├── events_test.go      # Тесты событий NATS
+│   ├── user.go
+│   └── user_test.go        # Тесты работы с пользователями
+└── testutils/
+    └── testutils.go        # Общие тестовые утилиты
+```
+
+#### Покрытие тестами
+
+Тесты покрывают:
+- ✅ Модели данных и их валидацию
+- ✅ Загрузку конфигурации из переменных окружения
+- ✅ HTTP взаимодействие с внешними сервисами
+- ✅ Работу с базой данных (CRUD операции)
+- ✅ Публикацию событий в NATS
+- ✅ Обработку ошибок и edge cases
+
 ### Зависимости
 
 Основные Go модули:

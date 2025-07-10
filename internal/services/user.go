@@ -102,7 +102,10 @@ func (s *UserService) UpdatePlumbusStatus(id uuid.UUID, status models.PlumbusSta
 func (s *UserService) GetPlumbus(id uuid.UUID) (*models.Plumbus, error) {
 	var plumbus models.Plumbus
 	err := s.db.First(&plumbus, "id = ?", id).Error
-	return &plumbus, err
+	if err != nil {
+		return nil, err // Возвращаем nil вместо указателя на пустую структуру
+	}
+	return &plumbus, nil
 }
 
 func (s *UserService) GetUserByID(userID uuid.UUID) (*models.User, error) {

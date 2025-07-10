@@ -14,8 +14,27 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// NATSConn - интерфейс для NATS соединения
+type NATSConn interface {
+	Publish(subject string, data []byte) error
+	Close()
+}
+
+// natsConnWrapper - обертка для реального NATS соединения
+type natsConnWrapper struct {
+	conn *nats.Conn
+}
+
+func (w *natsConnWrapper) Publish(subject string, data []byte) error {
+	return w.conn.Publish(subject, data)
+}
+
+func (w *natsConnWrapper) Close() {
+	w.conn.Close()
+}
+
 type EventsService struct {
-	conn   *nats.Conn
+	conn   NATSConn
 	config *config.Config
 	logger *logrus.Logger
 }
@@ -42,7 +61,7 @@ func NewEventsService(cfg *config.Config) (*EventsService, error) {
 	logger.WithField("nats_url", cfg.NatsURL).Info("Connected to NATS")
 
 	return &EventsService{
-		conn:   conn,
+		conn:   &natsConnWrapper{conn: conn},
 		config: cfg,
 		logger: logger,
 	}, nil
