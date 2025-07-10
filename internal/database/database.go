@@ -115,24 +115,27 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 
 	log.Printf("Starting database migration...")
 
-	// Удаляем существующие таблицы, если они есть
-	if err := db.Migrator().DropTable(&models.User{}, &models.Plumbus{}); err != nil {
-		log.Printf("Warning: failed to drop tables: %v", err)
+	// Проверяем существование таблиц и создаем их, если они отсутствуют
+	if !db.Migrator().HasTable(&models.User{}) {
+		log.Printf("Creating users table...")
+		if err := db.Migrator().CreateTable(&models.User{}); err != nil {
+			return nil, fmt.Errorf("failed to create users table: %w", err)
+		}
+	} else {
+		log.Printf("Users table already exists")
 	}
 
-	// Создаем таблицы по одной
-	log.Printf("Creating users table...")
-	if err := db.Migrator().CreateTable(&models.User{}); err != nil {
-		return nil, fmt.Errorf("failed to create users table: %w", err)
+	if !db.Migrator().HasTable(&models.Plumbus{}) {
+		log.Printf("Creating plumbuses table...")
+		if err := db.Migrator().CreateTable(&models.Plumbus{}); err != nil {
+			return nil, fmt.Errorf("failed to create plumbuses table: %w", err)
+		}
+	} else {
+		log.Printf("Plumbuses table already exists")
 	}
 
-	log.Printf("Creating plumbuses table...")
-	if err := db.Migrator().CreateTable(&models.Plumbus{}); err != nil {
-		return nil, fmt.Errorf("failed to create plumbuses table: %w", err)
-	}
-
-	// Проверяем, что таблицы созданы
-	log.Printf("Verifying table creation...")
+	// Проверяем, что таблицы существуют
+	log.Printf("Verifying table existence...")
 	if !db.Migrator().HasTable(&models.User{}) {
 		return nil, fmt.Errorf("users table was not created")
 	}
